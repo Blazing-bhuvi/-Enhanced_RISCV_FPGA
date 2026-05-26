@@ -1,0 +1,37 @@
+# --- Toolchain Variables ---
+# Using the exact absolute path and new 'elf' naming convention from your screenshot
+TOOLCHAIN_PATH = C:\Users\Bhuva\AppData\Roaming\xPacks\@xpack-dev-tools\riscv-none-elf-gcc\15.2.0-1.1\.content\bin
+
+CC      = "$(TOOLCHAIN_PATH)\riscv-none-elf-gcc.exe"
+OBJCOPY = "$(TOOLCHAIN_PATH)\riscv-none-elf-objcopy.exe"
+OBJDUMP = "$(TOOLCHAIN_PATH)\riscv-none-elf-objdump.exe"
+
+# --- Vivado Target Directory ---
+VIVADO_DIR = C:\Users\Bhuva\5_stage_pipeline_nexys\5_stage_pipeline_nexys.srcs\sources_1\imports\xsim
+
+# --- Hardware Target Flags ---
+CFLAGS  = -march=rv32im -mabi=ilp32 -ffreestanding -nostdlib -T link.ld
+
+# --- Source Files ---
+SRC = crt0.S filter.c
+TARGET = code.elf
+
+.PHONY: all clean
+
+all:
+	@echo --- 1. Compiling C and Assembly to ELF ---
+	$(CC) $(CFLAGS) $(SRC) -o $(TARGET)
+	@echo --- 2. Extracting IMEM and DMEM ---
+	$(OBJCOPY) -j .text -O binary $(TARGET) imem.bin
+	$(OBJCOPY) -j .data -j .rodata -j .bss -O binary $(TARGET) dmem.bin
+	@echo --- 3. Creating Disassembly ---
+	$(OBJDUMP) -d $(TARGET) > code.dis
+	@echo --- 4. Generating Hex Files ---
+	python bin2hex.py
+	@echo --- 5. Deploying to Vivado ---
+	copy imem.hex "$(VIVADO_DIR)\imem.hex"
+	copy dmem.hex "$(VIVADO_DIR)\dmem.hex"
+	@echo SUCCESS: Hex files pushed to Vivado!
+
+clean:
+	del /Q *.elf *.bin *.hex *.dis
